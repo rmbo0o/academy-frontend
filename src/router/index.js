@@ -2,7 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import RegisterPlayerView from '../views/RegisterPlayerView.vue'
-
+import CreateSubscriptionView from '../views/CreateSubscriptionView.vue'
+import CreatePackageView from '../views/CreatePackageView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -25,6 +26,16 @@ const router = createRouter({
   path: '/register-player',
   name: 'RegisterPlayer',
   component: RegisterPlayerView
+    },
+    {
+  path: '/create-subscription',
+  name: 'CreateSubscription',
+  component: CreateSubscriptionView
+    },
+    {
+  path: '/create-package',
+  name: 'CreatePackage',
+  component: CreatePackageView
     }
   ]
 })

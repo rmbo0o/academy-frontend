@@ -5,10 +5,12 @@
       <form @submit.prevent="handleLogin">
         <div class="input-group">
           <label>البريد الإلكتروني</label>
+          admin@academy.com
           <input type="email" v-model="email" required placeholder="admin@academy.com" />
         </div>
         <div class="input-group">
           <label>كلمة المرور</label>
+          password
           <input type="password" v-model="password" required placeholder="******" />
         </div>
         <button type="submit">دخول</button>

@@ -6,7 +6,10 @@
       <ul>
         <li class="active">الرئيسية</li>
         <li v-if="userRole === 'admin'">إدارة شؤون الموظفين 🛠️</li>
-        <li @click="router.push('/register-player')">تسجيل مشترك جديد 🏃‍♂️</li>
+      <!-- القائمة الجانبية في الـ Dashboard -->
+        <li @click="router.push('/register-player')">📝 تسجيل مشترك جديد</li>
+         <li @click="router.push('/create-package')">� إنشاء حزمة جديدة</li>
+        <li @click="router.push('/create-subscription')" style="background: #10b981; color: white; font-weight: bold;">💳 تسجيل اشتراك جديد</li>
       </ul>
       <button @click="logout" class="logout-btn">تسجيل الخروج</button>
     </div>
