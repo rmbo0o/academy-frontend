@@ -9,8 +9,9 @@
       <!-- القائمة الجانبية في الـ Dashboard -->
         <li @click="router.push('/register-player')">📝 تسجيل مشترك جديد</li>
          <li @click="router.push('/create-package')">� إنشاء حزمة جديدة</li>
-        <li @click="router.push('/create-subscription')" style="background: #10b981; color: white; font-weight: bold;">💳 تسجيل اشتراك جديد</li>
-      </ul>
+         <li @click="router.push('/create-subscription')" style=" color: white; font-weight: bold;">💳 تسجيل اشتراك جديد</li>
+        <li @click="router.push('/attendance')" style=" color: white; font-weight: bold;">💳 الحضور</li>
+        </ul>
       <button @click="logout" class="logout-btn">تسجيل الخروج</button>
     </div>
 

@@ -4,6 +4,7 @@ import DashboardView from '../views/DashboardView.vue'
 import RegisterPlayerView from '../views/RegisterPlayerView.vue'
 import CreateSubscriptionView from '../views/CreateSubscriptionView.vue'
 import CreatePackageView from '../views/CreatePackageView.vue'
+import AttendanceView from '@/views/AttendanceView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -36,6 +37,11 @@ const router = createRouter({
   path: '/create-package',
   name: 'CreatePackage',
   component: CreatePackageView
+    },
+    {
+  path: '/attendance',
+  name: 'attendance',
+  component: AttendanceView
     }
   ]
 })

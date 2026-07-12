@@ -18,7 +18,7 @@
         <!-- ================= الخطوة الأولى ================= -->
         <div v-if="currentStep === 1" class="step-content">
           
-          <!-- 1. تعديل: جعل نوع الرياضة خانة إدخال نصية (Input) بدلاً من قائمة -->
+          <!-- 1. نوع الرياضة -->
           <div class="form-group">
             <label>اكتب نوع الرياضة المنفصلة *</label>
             <input 
@@ -29,9 +29,21 @@
             />
           </div>
 
+          <!-- 2. اسم الباقة -->
           <div class="form-group">
             <label>اسم الباقة التدريبية *</label>
             <input type="text" v-model="form.name" placeholder="مثال: الفئة السنية 6-8 سنوات" />
+          </div>
+
+          <!-- 3. الحقل الجديد: عدد المشتركين المسموح به -->
+          <div class="form-group">
+            <label>العدد المسموح به للمشتركين في هذه الباقة *</label>
+            <input 
+              type="number" 
+              v-model.number="form.max_subscribers" 
+              placeholder="مثال: 20 (اكتب 0 إذا كان العدد غير محدود)" 
+              min="0"
+            />
           </div>
 
           <!-- اختيار الأيام عبر Checkbox -->
@@ -45,7 +57,7 @@
             </div>
           </div>
 
-          <!-- 2. تعديل: جعل خانة الوقت مفتوحة ونظام 24 ساعة مع فترات صباحي/مسائي -->
+          <!-- تحديد المواعيد ونظام 24 ساعة -->
           <div class="form-group">
             <label>حدد مواعيد الحصص التدريبية (نظام الوقت المفتوح) *</label>
             <div class="time-open-container">
@@ -143,16 +155,16 @@ const successMsg = ref('');
 const daysOptions = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 const selectedDays = ref([]);
 
-// متغيرات الوقت المفتوح الجديدة
 const timeFrom = ref('');
 const timeTo = ref('');
 const selectedPeriods = ref([]);
 
 const form = ref({
-  sport_name: '', // تحويلها لاسم نصي
+  sport_name: '', 
   name: '',
   days: '',
   session_time: '',
+  max_subscribers: 0, // القيمة الافتراضية هنا للحقل الجديد
   durations: Array.from({ length: 12 }, (_, i) => ({
     months: i + 1,
     price: null,
@@ -163,10 +175,8 @@ const form = ref({
 const goToStep2 = () => {
   errorMsg.value = '';
   
-  // تجميع الأيام المختارة
   form.value.days = selectedDays.value.join(' - ');
 
-  // تجميع وقراءة الوقت المفتوح المختار بنظام الـ 24 ساعة والفترات المحددة
   if (timeFrom.value && timeTo.value && selectedPeriods.value.length > 0) {
     const periodsStr = selectedPeriods.value.join(' و ');
     form.value.session_time = `من ${timeFrom.value} إلى ${timeTo.value} (${periodsStr})`;
@@ -174,9 +184,9 @@ const goToStep2 = () => {
     form.value.session_time = '';
   }
 
-  // التحقق من صحة الإدخال الكامل للخطوة الأولى
-  if (!form.value.sport_name.trim() || !form.value.name.trim() || selectedDays.value.length === 0 || !form.value.session_time) {
-    errorMsg.value = 'الرجاء كتابة اسم الرياضة، اسم الباقة، واختيار الأيام مع تحديد الوقت والفترة بالكامل.';
+  // التحقق الإضافي للتأكد من تعبئة حقل العدد بشكل صحيح
+  if (!form.value.sport_name.trim() || !form.value.name.trim() || selectedDays.value.length === 0 || !form.value.session_time || form.value.max_subscribers === null) {
+    errorMsg.value = 'الرجاء كتابة اسم الرياضة، اسم الباقة، تحديد الحد الأقصى للمشتركين، واختيار الأيام والوقت.';
     return;
   }
   currentStep.value = 2;
@@ -197,7 +207,7 @@ const savePackage = async () => {
     const response = await fetch('http://localhost:5000/api/packages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(form.value)
+      body: JSON.stringify(form.value) // سيتم إرسال max_subscribers تلقائياً ضمن الـ form
     });
 
     const data = await response.json();
@@ -228,17 +238,15 @@ h2 { text-align: center; color: #1e293b; margin: 0; font-size: 22px; }
 
 .form-group { margin-bottom: 20px; display: flex; flex-direction: column; text-align: right; }
 label { font-weight: 600; margin-bottom: 8px; color: #334155; font-size: 14px; }
-input[type="text"], input[type="time"] { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; width: 100%; box-sizing: border-box; background: #fff; }
+input[type="text"], input[type="time"], input[type="number"] { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; width: 100%; box-sizing: border-box; background: #fff; }
 .input-highlight { border: 2px solid #3b82f6; font-weight: bold; }
 
-/* حاوية تجميع الوقت المفتوح الجديد */
 .time-open-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
 .time-pickers-row { display: flex; gap: 20px; }
 .time-field { flex: 1; display: flex; flex-direction: column; gap: 5px; font-weight: bold; color: #475569; font-size: 13px; }
 .period-selectors { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; font-weight: bold; color: #475569; font-size: 13px; }
 .border-none { border: none !important; padding: 0 !important; background: transparent !important; }
 
-/* تصميم لوحة الـ Checkbox للأيام والوقت */
 .checkbox-group-box { display: flex; flex-wrap: wrap; gap: 10px; background: #f8fafc; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; }
 .custom-checkbox { display: flex; align-items: center; cursor: pointer; position: relative; }
 .custom-checkbox input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
@@ -247,7 +255,6 @@ input[type="text"], input[type="time"] { padding: 12px; border: 1px solid #cbd5e
 .custom-checkbox input:checked + .checkmark-box☀️ { background: #fef08a; border-color: #eab308; color: #854d0e; }
 .custom-checkbox input:checked + .checkmark-box🌙 { background: #e0e7ff; border-color: #6366f1; color: #3730a3; }
 
-/* جدول الفترات والأشهر */
 .durations-grid { border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 25px; }
 .grid-header { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; background: #f1f5f9; padding: 12px; font-weight: bold; color: #475569; font-size: 14px; text-align: center; border-bottom: 1px solid #e2e8f0; }
 .grid-row { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; padding: 12px; align-items: center; text-align: center; border-bottom: 1px solid #f1f5f9; background: #fafafa; }
@@ -273,5 +280,5 @@ button { padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: b
 button:hover { opacity: 0.9; }
 
 .error-msg { color: #ef4444; background: #fee2e2; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; }
-.success-msg { color: #22c55e; background: #f0fdf4; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; }
+.subtitle { color: #22c55e; background: #f0fdf4; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; }
 </style>
