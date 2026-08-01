@@ -21,6 +21,7 @@
 </template>
 
 <script setup>
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -31,7 +32,7 @@ const router = useRouter();
 
 const handleLogin = async () => {
   try {
-    const response = await fetch('http://localhost:5000/api/login', {
+    const response = await fetch(API + '/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value, password: password.value })

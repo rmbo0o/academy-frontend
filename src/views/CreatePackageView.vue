@@ -1,5 +1,8 @@
 <template>
   <div class="package-container">
+    <div class="back-bar">
+      <button type="button" @click="router.push('/dashboard')" class="btn-home">🏠 العودة للرئيسية</button>
+    </div>
     <div class="package-card">
       
       <!-- مؤشر الخطوات العلوي -->
@@ -19,15 +22,16 @@
         <div v-if="currentStep === 1" class="step-content">
           
           <!-- 1. نوع الرياضة -->
-          <div class="form-group">
-            <label>اكتب نوع الرياضة المنفصلة *</label>
-            <input 
-              type="text" 
-              v-model="form.sport_name" 
-              placeholder="مثال: كرة القدم، سباحة، تايكوندو، كاراتيه..." 
-              class="input-highlight"
-            />
-          </div>
+        <div class="form-group" >
+            <label >اكتب نوع الرياضة المنفصلة *</label>
+            <select v-model="form.sport_name" class="input-highlight">
+                <option value="" disabled selected >-- اختر نوع الرياضة --</option>
+                <option value="كرة القدم">كرة القدم</option>
+                <option value="سباحة">سباحة</option>
+                <option value="تايكوندو">تايكوندو</option>
+                <option value="كاراتيه">كاراتيه</option>
+            </select>
+        </div>
 
           <!-- 2. اسم الباقة -->
           <div class="form-group">
@@ -59,7 +63,7 @@
 
           <!-- تحديد المواعيد ونظام 24 ساعة -->
           <div class="form-group">
-            <label>حدد مواعيد الحصص التدريبية (نظام الوقت المفتوح) *</label>
+            <label>حدد مواعيد الحصص التدريبية *</label>
             <div class="time-open-container">
               
               <div class="time-pickers-row">
@@ -70,20 +74,6 @@
                 <div class="time-field">
                   <span>إلى الساعة:</span>
                   <input type="time" v-model="timeTo" />
-                </div>
-              </div>
-
-              <div class="period-selectors">
-                <span>تحديد الفترة المتاحة:</span>
-                <div class="checkbox-group-box border-none">
-                  <label class="custom-checkbox">
-                    <input type="checkbox" value="صباحي" v-model="selectedPeriods" />
-                    <span class="checkmark-box☀️">☀️ فتره صباحية</span>
-                  </label>
-                  <label class="custom-checkbox">
-                    <input type="checkbox" value="مسائي" v-model="selectedPeriods" />
-                    <span class="checkmark-box🌙">🌙 فتره مسائية</span>
-                  </label>
                 </div>
               </div>
 
@@ -144,6 +134,7 @@
 </template>
 
 <script setup>
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -157,14 +148,13 @@ const selectedDays = ref([]);
 
 const timeFrom = ref('');
 const timeTo = ref('');
-const selectedPeriods = ref([]);
 
 const form = ref({
   sport_name: '', 
   name: '',
   days: '',
   session_time: '',
-  max_subscribers: 0, // القيمة الافتراضية هنا للحقل الجديد
+  max_subscribers: 0,
   durations: Array.from({ length: 12 }, (_, i) => ({
     months: i + 1,
     price: null,
@@ -177,14 +167,12 @@ const goToStep2 = () => {
   
   form.value.days = selectedDays.value.join(' - ');
 
-  if (timeFrom.value && timeTo.value && selectedPeriods.value.length > 0) {
-    const periodsStr = selectedPeriods.value.join(' و ');
-    form.value.session_time = `من ${timeFrom.value} إلى ${timeTo.value} (${periodsStr})`;
+  if (timeFrom.value && timeTo.value) {
+    form.value.session_time = `من ${timeFrom.value} إلى ${timeTo.value}`;
   } else {
     form.value.session_time = '';
   }
 
-  // التحقق الإضافي للتأكد من تعبئة حقل العدد بشكل صحيح
   if (!form.value.sport_name.trim() || !form.value.name.trim() || selectedDays.value.length === 0 || !form.value.session_time || form.value.max_subscribers === null) {
     errorMsg.value = 'الرجاء كتابة اسم الرياضة، اسم الباقة، تحديد الحد الأقصى للمشتركين، واختيار الأيام والوقت.';
     return;
@@ -204,10 +192,10 @@ const savePackage = async () => {
 
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:5000/api/packages', {
+    const response = await fetch(API + '/api/packages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(form.value) // سيتم إرسال max_subscribers تلقائياً ضمن الـ form
+      body: JSON.stringify(form.value)
     });
 
     const data = await response.json();
@@ -224,7 +212,10 @@ const savePackage = async () => {
 </script>
 
 <style scoped>
-.package-container { display: flex; justify-content: center; padding: 40px 20px; background: #f8fafc; min-height: 100vh; direction: rtl; font-family: sans-serif; }
+.package-container { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; background: #f8fafc; min-height: 100vh; direction: rtl; font-family: sans-serif; }
+.back-bar { width: 100%; max-width: 750px; margin-bottom: 15px; }
+.btn-home { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.btn-home:hover { background: #1d4ed8; }
 .package-card { background: white; padding: 35px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); width: 100%; max-width: 750px; }
 
 .wizard-header { display: flex; align-items: center; justify-content: center; margin-bottom: 30px; gap: 15px; }

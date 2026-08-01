@@ -1,106 +1,150 @@
 <template>
   <div class="register-container">
+    <!-- 3️⃣ شريط التنقل العلوي مع زر الرجوع للرئيسية -->
+    <div class="top-nav-bar">
+      <button type="button" @click="goHome" class="btn-home">🏠 العودة للصفحة الرئيسية</button>
+    </div>
+
     <div class="form-card">
-      <h2>📝 استمارة تسجيل لاعب جديد</h2>
-      <p class="subtitle">يرجى ملء البيانات الشخصية والطبية للاعب</p>
-      
-      <form @submit.prevent="submitForm">
+      <div class="card-header">
+        <h2>📝 استمارة تسجيل لاعب جديد</h2>
+        <p class="subtitle">يرجى إدخال البيانات الشخصية والطبية للاعب بدقة</p>
+      </div>
+
+      <form @submit.prevent="submitForm" class="player-form">
         
+        <!-- 👤 البيانات الشخصية -->
         <div class="section-title">👤 البيانات الشخصية الأساسية</div>
         
         <div class="form-row">
           <div class="form-group flex-2">
-            <label>اسم اللاعب الثلاثي *</label>
-            <input type="text" v-model="form.name" placeholder="أدخل الاسم الكامل" />
+            <label>اسم اللاعب الثلاثي <span class="required">*</span></label>
+            <input 
+              type="text" 
+              v-model="form.name" 
+              placeholder="أدخل الاسم الكامل" 
+              required 
+            />
           </div>
           <div class="form-group flex-1">
-            <label>رقم المشترك (إن وجد)</label>
-            <input type="text" v-model="form.member_number" placeholder="اختياري" />
+            <label>رقم المشترك (توليد تلقائي ⚡)</label>
+            <input 
+              type="text" 
+              v-model="form.member_number" 
+              placeholder="سيولد تلقائياً" 
+              readonly 
+              class="read-only-input" 
+            />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group flex-2">
-            <label>تاريخ الميلاد *</label>
-            <input type="date" v-model="form.birth_date" @input="calculateAge" />
+            <label>تاريخ الميلاد <span class="required">*</span></label>
+            <input 
+              type="date" 
+              v-model="form.birth_date" 
+              @change="calculateAgeAndValidate" 
+              required 
+            />
           </div>
           <div class="form-group flex-1">
-            <label>العمر الحالي</label>
-            <div class="age-display" :class="{ 'has-age': playerAge }">
-              {{ playerAge ? playerAge : 'يحسب تلقائياً' }}
+            <label>العمر المحسوب</label>
+            <div class="age-display" :class="{ 'has-age': playerAge !== null }">
+              {{ playerAge !== null ? playerAge + ' سنة' : '---' }}
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>رقم هاتف ولي الأمر *</label>
-          <input 
-            type="tel" 
-            v-model="form.parent_phone" 
-            maxlength="10" 
-            placeholder="05xxxxxxxx" 
-            @input="filterPhoneNumber('parent_phone')"
-          />
+        <!-- 4️⃣ التنبيه في حال مخالفة السن المسموح مع خيار التجاوز الاستثنائي -->
+        <div class="age-warning-box" v-if="ageViolation">
+          <p>⚠️ عمر اللاعب (<strong>{{ playerAge }} سنة</strong>) خارج نطاق الفئة العمرية المسموحة (من {{ minAllowedAge }} إلى {{ maxAllowedAge }} سنة).</p>
         </div>
 
+        <div class="override-option" v-if="ageViolation">
+          <input type="checkbox" id="bypass" v-model="bypassAgeRestriction" />
+          <label for="bypass">🔓 تفعيل الاستثناء وفك القيود الإدارية لتسجيل هذا اللاعب (مدير فقط)</label>
+        </div>
+
+        <!-- 📞 بيانات التواصل ومعلومات أرقام الهواتف -->
         <div class="form-row">
-          <div class="form-group">
-            <label>صلة قرابة الهاتف البديل</label>
-            <input type="text" v-model="form.relative_relation" placeholder="مثال: الأم، الأخ، العم" />
+          <div class="form-group flex-1">
+            <label>رقم هاتف ولي الأمر <span class="required">*</span></label>
+            <input 
+              type="tel" 
+              v-model="form.parent_phone" 
+              maxlength="10" 
+              placeholder="05xxxxxxxx" 
+              required 
+              @input="filterPhoneNumber('parent_phone')" 
+            />
           </div>
-          <div class="form-group">
-            <label>رقم هاتف القريب </label>
+          <div class="form-group flex-1">
+            <label>صلة قرابة لجهة اتصال أخرى</label>
+            <input 
+              type="text" 
+              v-model="form.relative_relation" 
+              placeholder="مثال: العم / الخال" 
+            />
+          </div>
+          <div class="form-group flex-1">
+            <label>رقم هاتف القريب</label>
             <input 
               type="tel" 
               v-model="form.relative_phone" 
               maxlength="10" 
-              placeholder="05xxxxxxxx (اختياري)" 
-              @input="filterPhoneNumber('relative_phone')"
+              placeholder="05xxxxxxxx" 
+              @input="filterPhoneNumber('relative_phone')" 
             />
           </div>
         </div>
 
+        <!-- 🏥 البيانات الطبية والمقاييس -->
         <div class="section-title">🏥 الملف الطبي والمقاييس الجسمانية</div>
 
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group flex-1">
             <label>الطول (سم)</label>
             <input type="number" v-model="form.height" placeholder="مثال: 152" />
           </div>
-          <div class="form-group">
+          <div class="form-group flex-1">
             <label>الوزن (كجم)</label>
-            <input type="number" v-model="form.weight" placeholder="مثال: 46" />
+            <input type="number" v-model="form.weight" placeholder="مثال: 45" />
           </div>
         </div>
 
         <div class="form-row">
-          <div class="form-group">
-            <label>هل يعاني من أي حساسية؟</label>
-            <input type="text" v-model="form.allergies" placeholder="اكتبها هنا (إن وجدت)" />
+          <div class="form-group flex-1">
+            <label>الحساسية (إن وجدت)</label>
+            <input type="text" v-model="form.allergies" placeholder="مثال: حساسية الطعام أو الأدوية" />
           </div>
-          <div class="form-group">
-            <label>هل يعاني من أمراض مزمنة؟</label>
-            <input type="text" v-model="form.chronic_diseases" placeholder="ربو، سكري، إلخ... (إن وجد)" />
+          <div class="form-group flex-1">
+            <label>الأمراض المزمنة</label>
+            <input type="text" v-model="form.chronic_diseases" placeholder="مثال: الربو، السكري" />
           </div>
         </div>
 
         <div class="form-row">
-          <div class="form-group">
-            <label>إصابات أو عمليات سابقة؟</label>
-            <input type="text" v-model="form.past_injuries" placeholder="كسور، غضروف، إلخ... (إن وجد)" />
+          <div class="form-group flex-1">
+            <label>إصابات سابقة</label>
+            <input type="text" v-model="form.past_injuries" placeholder="مثال: كسر سابق في القدم" />
           </div>
-          <div class="form-group">
-            <label>أدوية حالية مستخدمة؟</label>
-            <input type="text" v-model="form.current_medications" placeholder="اسم الدواء ومواعيده (إن وجد)" />
+          <div class="form-group flex-1">
+            <label>أدوية مستمرة</label>
+            <input type="text" v-model="form.current_medications" placeholder="مثال: بخاخ الربو" />
           </div>
         </div>
 
-        <p v-if="errorMessage" class="error-msg">⚠️ {{ errorMessage }}</p>
-        <p v-if="successMessage" class="success-msg"> {{ successMessage }}</p>
+        <!-- رسائل الخطأ والنجاح -->
+        <div v-if="errorMessage" class="alert-box error">{{ errorMessage }}</div>
+        <div v-if="successMessage" class="alert-box success">{{ successMessage }}</div>
 
+        <!-- أزرار الحفظ والإلغاء -->
         <div class="buttons-row">
-          <button type="button" @click="router.push('/dashboard')" class="btn-secondary">إلغاء والعودة</button>
-          <button type="submit" class="btn-success">إتمام وحفظ اللاعب ⚽</button>
+          <button type="button" @click="goHome" class="btn-secondary">إلغاء والعودة</button>
+          <button type="submit" class="btn-primary" :disabled="ageViolation && !bypassAgeRestriction">
+            حفظ وتسجيل اللاعب ⚽
+          </button>
         </div>
       </form>
     </div>
@@ -108,15 +152,21 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-const router = useRouter();
-const errorMessage = ref('');
-const successMessage = ref('');
-const playerAge = ref('');
+const router = useRouter()
 
-// كائن البيانات المحدث بالكامل بناء على طلبك
+const errorMessage = ref('')
+const successMessage = ref('')
+const playerAge = ref(null)
+
+const minAllowedAge = ref(6)
+const maxAllowedAge = ref(14)
+const ageViolation = ref(false)
+const bypassAgeRestriction = ref(false)
+
 const form = ref({
   name: '',
   birth_date: '',
@@ -130,99 +180,264 @@ const form = ref({
   chronic_diseases: '',
   past_injuries: '',
   current_medications: ''
-});
+})
 
-// دالة تمنع كتابة أي شيء عدا الأرقام وتضمن عدم تجاوز الطول المطلق
+const goHome = () => {
+  router.push('/dashboard')
+}
+
+// تنقية مدخلات الهاتف لتقبل الأرقام فقط
 const filterPhoneNumber = (field) => {
-  form.value[field] = form.value[field].replace(/\D/g, ''); // حذف أي حرف ليس رقماً
-};
+  form.value[field] = form.value[field].replace(/\D/g, '')
+}
 
-// دالة حساب العمر التلقائي فور إدخال التاريخ
-const calculateAge = () => {
-  if (!form.value.birth_date) {
-    playerAge.value = '';
-    return;
+// حساب السن والتحقق من النطاق العمري
+const calculateAgeAndValidate = () => {
+  if (!form.value.birth_date) return
+  const birth = new Date(form.value.birth_date)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--
   }
-  const birth = new Date(form.value.birth_date);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-    age--;
+  
+  playerAge.value = age
+  
+  if (age < minAllowedAge.value || age > maxAllowedAge.value) {
+    ageViolation.value = true
+  } else {
+    ageViolation.value = false;
   }
-  playerAge.value = age >= 0 ? `${age} سنة` : 'غير صالح';
-};
+}
 
-// إرسال الاستمارة المحدثة
+// إرسال البيانات إلى السيرفر
 const submitForm = async () => {
-  errorMessage.value = '';
-  successMessage.value = '';
+  errorMessage.value = ''
+  successMessage.value = ''
 
-  // 1. التحقق من الحقول الإلزامية
-  if (!form.value.name || !form.value.birth_date || !form.value.parent_phone) {
-    errorMessage.value = 'الرجاء ملء الحقول الإلزامية: اسم اللاعب، تاريخ الميلاد، ورقم هاتف ولي الأمر.';
-    return;
+  if (ageViolation.value && !bypassAgeRestriction.value) {
+    errorMessage.value = 'لا يمكن التسجيل بسبب قيود العمر. يرجى تفعيل خيار فك القيود للإكمال.'
+    return
   }
 
-  // 2. التحقق من طول رقم جوال ولي الأمر (يجب ألا يزيد عن 10 أرقام، ويفضل أن يكون 10 تماماً)
-  if (form.value.parent_phone.length > 10) {
-    errorMessage.value = 'رقم هاتف ولي الأمر لا يمكن أن يزيد عن 10 أرقام.';
-    return;
-  }
-
-  // 3. التحقق من رقم هاتف القريب إن كُتب
-  if (form.value.relative_phone && form.value.relative_phone.length > 10) {
-    errorMessage.value = 'رقم هاتف القريب البديل لا يمكن أن يزيد عن 10 أرقام.';
-    return;
+  // إضافة علامة فك القيود للبيانات المرسلة
+  const payload = { ...form.value }
+  if (bypassAgeRestriction.value) {
+    payload.age_bypass = true
   }
 
   try {
-    const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:5000/api/players', {
+    const token = localStorage.getItem('token')
+    const response = await fetch(API + '/api/players', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(form.value)
-    });
+      body: JSON.stringify(payload)
+    })
 
-    const data = await response.json();
+    const data = await response.json()
+
     if (response.ok) {
-      successMessage.value = data.message;
+      successMessage.value = `🎉 تم التسجيل بنجاح! رقم المشترك الخاص باللاعب: (${data.member_number})`
       setTimeout(() => {
-        router.push('/dashboard');
-      }, 2000);
+        router.push('/dashboard')
+      }, 2000)
     } else {
-      errorMessage.value = data.message;
+      errorMessage.value = data.message || 'حدث خطأ أثناء حفظ البيانات.'
     }
-  } catch (error) {
-    errorMessage.value = 'فشل الاتصال بالسيرفر أثناء حفظ البيانات.';
+  } catch (err) {
+    errorMessage.value = 'فشل الاتصال بالسيرفر. يرجى التأكد من تشغيل backend.'
   }
-};
+}
 </script>
 
 <style scoped>
-.register-container { display: flex; justify-content: center; padding: 40px 20px; background: #f4f6f9; min-height: 100vh; direction: rtl; font-family: sans-serif; }
-.form-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 700px; }
-h2 { text-align: center; color: #2c3e50; margin-bottom: 5px; }
-.subtitle { text-align: center; color: #7f8c8d; margin-bottom: 25px; font-size: 14px; }
-.section-title { font-size: 16px; font-weight: bold; color: #2980b9; margin: 25px 0 15px 0; padding-bottom: 8px; border-bottom: 2px solid #edf2f7; text-align: right; }
-.form-group { margin-bottom: 18px; display: flex; flex-direction: column; text-align: right; }
-.form-row { display: flex; gap: 20px; }
-.form-row .form-group { flex: 1; }
-.flex-2 { flex: 2 !important; }
-.flex-1 { flex: 1 !important; }
-label { font-weight: 600; margin-bottom: 8px; color: #34495e; font-size: 13px; }
-input { padding: 11px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; width: 100%; box-sizing: border-box; background: #fff; }
-input:focus { border-color: #2980b9; outline: none; box-shadow: 0 0 5px rgba(41,128,185,0.2); }
-.age-display { padding: 11px; background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 15px; color: #94a3b8; text-align: center; font-weight: bold; min-height: 43px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
-.age-display.has-age { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
-.buttons-row { display: flex; justify-content: space-between; margin-top: 35px; gap: 15px; }
-button { padding: 12px 25px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; }
-.btn-success { background: #27ae60; color: white; flex-grow: 2; }
-.btn-secondary { background: #95a5a6; color: white; flex-grow: 1; }
-button:hover { opacity: 0.9; }
-.error-msg { color: #c0392b; background: #fde8e7; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; margin-top: 15px; }
-.success-msg { color: #27ae60; background: #e8f8f0; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; margin-top: 15px; }
+.register-container {
+  padding: 30px 15px;
+  background-color: #f1f5f9;
+  min-height: 100vh;
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.top-nav-bar {
+  width: 100%;
+  max-width: 800px;
+  margin-bottom: 15px;
+}
+
+.btn-home {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-home:hover {
+  background-color: #1d4ed8;
+}
+
+.form-card {
+  background: white;
+  padding: 35px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  max-width: 800px;
+}
+
+.card-header h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.subtitle {
+  color: #64748b;
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #0284c7;
+  margin: 25px 0 15px 0;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+
+label {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #334155;
+}
+
+.required {
+  color: #ef4444;
+}
+
+input {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+input:focus {
+  border-color: #2563eb;
+}
+
+.read-only-input {
+  background-color: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.age-display {
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  color: #64748b;
+}
+
+.age-display.has-age {
+  color: #0284c7;
+  background: #f0f9ff;
+}
+
+.age-warning-box {
+  background-color: #fffbebf8;
+  border: 1px solid #fde047;
+  color: #854d0e;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.override-option {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  color: #1e40af;
+}
+
+.alert-box {
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+.alert-box.error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.alert-box.success {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.buttons-row {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+button {
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background-color: #16a34a;
+  color: white;
+  flex: 2;
+}
+
+.btn-primary:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #64748b;
+  color: white;
+  flex: 1;
+}
 </style>

@@ -1,255 +1,227 @@
 <template>
   <div class="attendance-container">
-    <div class="attendance-card">
-      <h2>📝 دفتر الحضور والغياب اليومي</h2>
-      <p class="subtitle">اختر الباقة الرياضية لتحضير اللاعبين وتنبيه الغائبين فوراً</p>
-
-      <!-- خيارات التصفية: اختيار الباقة والتاريخ -->
-      <div class="filter-section">
-        <div class="form-group">
-          <label>الباقة التدريبية:</label>
-          <select v-model="selectedPackage" @change="fetchPlayers" class="select-input">
-            <option value="" disabled>-- اختر الباقة المستهدفة --</option>
-            <option v-for="pkg in packages" :key="pkg.id" :value="pkg.id">
-              {{ pkg.sport_name }} - {{ pkg.package_name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>تاريخ التحضير:</label>
-          <input type="date" v-model="attendanceDate" class="date-input" />
-        </div>
-      </div>
-
-      <hr class="divider" />
-
-      <!-- حالة عدم اختيار باقة أو عدم وجود لاعبين -->
-      <div v-if="!selectedPackage" class="info-msg animate-pulse">
-        💡 يرجى اختيار باقة رياضية من الأعلى لعرض كشف أسماء المشتركين.
-      </div>
-      <div v-else-if="players.length === 0" class="error-msg">
-        ⚠️ لا يوجد لاعبين مشتركين في هذه الباقة حالياً.
-      </div>
-
-      <!-- لوحة القوائم الديناميكية (تظهر فقط عند وجود لاعبين) -->
-      <div v-grid v-if="selectedPackage && players.length > 0" class="lists-wrapper">
-        
-        <!-- القائمة الرئيسية: غير المحضرين / الكل -->
-        <div class="list-box all-players">
-          <h3>👥 قائمة المشتركين بالباقة ({{ players.length }})</h3>
-          <div class="players-scroll">
-            <div v-for="player in players" :key="player.id" class="player-item" :class="player.status">
-              <div class="player-info">
-                <span class="member-badge">#{{ player.member_number || 'بدون' }}</span>
-                <strong>{{ player.name }}</strong>
-              </div>
-              <div class="action-buttons">
-                <button type="button" @click="setStatus(player, 'present')" class="btn-present-sm">حاضر ✓</button>
-                <button type="button" @click="setStatus(player, 'absent')" class="btn-absent-sm">غائب ✗</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- قوائم الفرز السريع والتحريك التلقائي -->
-        <div class="side-lists">
-          
-          <!-- قائمة الحاضرين -->
-          <div class="list-box present-box">
-            <h3 class="text-success">🟢 الحاضرون الآن ({{ presentList.length }})</h3>
-            <div class="compact-list">
-              <div v-for="player in presentList" :key="player.id" class="compact-item">
-                <span>{{ player.name }}</span>
-                <span class="badge-success">حاضر</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- قائمة الغائبين -->
-          <div class="list-box absent-box">
-            <h3 class="text-danger">🔴 الغائبون اليوم ({{ absentList.length }})</h3>
-            <div class="compact-list">
-              <div v-for="player in absentList" :key="player.id" class="compact-item">
-                <span>{{ player.name }}</span>
-                <span class="badge-danger" @click="triggerParentAlert(player)" style="cursor: pointer;" title="اضغط لإظهار رقم ولي الأمر">⚠️ إشعار</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-      <!-- زر الحفظ النهائي للملف -->
-      <div v-if="selectedPackage && players.length > 0" class="submit-section">
-        <p v-if="errorMsg" class="error-msg-text">⚠️ {{ errorMsg }}</p>
-        <p v-if="successMsg" class="success-msg-text">🎉 {{ successMsg }}</p>
-        <button @click="saveAttendance" class="btn-submit-attendance">💾 اعتماد وحفظ كشف التحضير النهائي</button>
-      </div>
-
+    <div class="back-bar">
+      <button @click="router.push('/schedule')" class="btn-back">⬅️ العودة لجدول الحصص</button>
     </div>
+
+    <div class="attendance-card" v-if="sessionDetails">
+      <!-- هيدر تفاصيل الحصة -->
+      <div class="session-info-header">
+        <div class="info-meta">
+          <h2>📝 كشف تحضير: {{ sessionDetails.title }}</h2>
+          <p>👨‍🏫 المدرب الكابتن: {{ sessionDetails.coach_name }} | ⏰ الوقت: {{ sessionDetails.start_time }} {{ sessionDetails.end_time ? ' - ' + sessionDetails.end_time : '' }}</p>
+        </div>
+        <!-- التقويم التلقائي -->
+        <div class="date-picker-box">
+          <label>تاريخ الحصة التدريبية:</label>
+          <input type="date" v-model="selectedDate" @change="fetchAttendance" />
+        </div>
+      </div>
+
+      <!-- كشف التحضير التلقائي للاعبين -->
+      <div class="players-attendance-list">
+        <table class="attendance-table" v-if="players.length > 0">
+          <thead>
+            <tr>
+              <th>رقم المشترك</th>
+              <th>اسم اللاعب</th>
+              <th style="text-align: center;">حالة الحضور</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="player in players" :key="player.id">
+              <td><span class="member-badge">{{ player.member_number }}</span></td>
+              <td class="player-name">{{ player.name }}</td>
+              <td>
+                <div class="status-selector">
+                  <button 
+                    type="button" 
+                    @click="setPlayerStatus(player.id, 'حاضر')" 
+                    class="btn-status present"
+                    :class="{ active: attendanceMap[player.id] === 'حاضر' }"
+                  >
+                    🟢 حاضر
+                  </button>
+                  <button 
+                    type="button" 
+                    @click="setPlayerStatus(player.id, 'متأخر')" 
+                    class="btn-status late"
+                    :class="{ active: attendanceMap[player.id] === 'متأخر' }"
+                  >
+                    🟡 متأخر
+                  </button>
+                  <button 
+                    type="button" 
+                    @click="setPlayerStatus(player.id, 'غائب')" 
+                    class="btn-status absent"
+                    :class="{ active: attendanceMap[player.id] === 'غائب' }"
+                  >
+                    🔴 غائب
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div v-else class="empty-players">
+          ⚠️ لا يوجد لاعبون مسجلون ونشطون في باقة هذه الحصة حالياً.
+          <br>
+          <small style="color: #64748b;">بمجرد اشتراك لاعب في هذه الباقة، سيظهر اسمه هنا تلقائياً.</small>
+        </div>
+      </div>
+
+      <div class="footer-actions" v-if="players.length > 0">
+        <button @click="saveAttendance" class="btn-save-attendance">💾 حفظ وإغلاق كشف الحصّة ⚽</button>
+      </div>
+    </div>
+    
+    <div v-else class="loading">جاري تحميل كشف الحصة...</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { ref, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
-const packages = ref([]);
-const selectedPackage = ref('');
-// تحديد تاريخ اليوم تلقائياً بصيغة YYYY-MM-DD
-const attendanceDate = ref(new Date().toISOString().split('T')[0]);
+const route = useRoute();
+const router = useRouter();
+const sessionId = route.params.id;
+
+const sessionDetails = ref(null);
 const players = ref([]);
+const selectedDate = ref(new Date().toISOString().split('T')[0]); // التاريخ الافتراضي لليوم (2026-07-16)
+const attendanceMap = ref({}); // خريطة لتخزين حالات الحضور { playerId: status }
 
-const errorMsg = ref('');
-const successMsg = ref('');
-
-// جلب الباقات عند تحميل الصفحة
 onMounted(async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:5000/api/packages-list', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      packages.value = await response.json();
-    }
-  } catch (error) {
-    console.error('خطأ في جلب الباقات:', error);
-  }
+  await fetchSessionDetails();
+  await fetchPlayers();
+  await fetchAttendance();
 });
 
-// جلب اللاعبين عند تغيير الباقة المحددة
-const fetchPlayers = async () => {
-  if (!selectedPackage.value) return;
-  errorMsg.value = '';
-  successMsg.value = '';
+const fetchSessionDetails = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`http://localhost:5000/api/packages/${selectedPackage.value}/players`, {
+    const response = await fetch(`${API}/api/sessions`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (response.ok) {
-      const data = await response.json();
-      // إضافة حالة افتراضية (status) لكل لاعب للتحكم بها بالواجهة
-      players.value = data.map(p => ({ ...p, status: 'unmarked' }));
+      const allSessions = await response.json();
+      sessionDetails.value = allSessions.find(s => s.id === parseInt(sessionId));
     }
-  } catch (error) {
-    errorMsg.value = 'حدث خطأ أثناء سحب قوائم اللاعبين.';
+  } catch (err) {
+    console.error(err);
   }
 };
 
-// فرز ديناميكي مذهل باستخدام الـ Computed Properties للتحرك التلقائي للاعبين
-const presentList = computed(() => players.value.filter(p => p.status === 'present'));
-const absentList = computed(() => players.value.filter(p => p.status === 'absent'));
-
-// وظيفة تحديد وتغيير حالة اللاعب وإطلاق التنبيه الفوري عند الغياب
-const setStatus = (player, status) => {
-  player.status = status;
-  
-  // إذا تم تحديد اللاعب كغائب، تظهر نافذة تنبيه للمدرب أو المدير فوراً لإرسال الرسالة لولي أمره
-  if (status === 'absent') {
-    triggerParentAlert(player);
+const fetchPlayers = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API}/api/sessions/${sessionId}/players`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      players.value = await response.json();
+      // تحضير افتراضي سريع "حاضر" لتوفير الوقت على الكباتن والمدربين
+      players.value.forEach(p => {
+        attendanceMap.value[p.id] = 'حاضر';
+      });
+    }
+  } catch (err) {
+    console.error(err);
   }
 };
 
-// دالة إظهار التنبيه الذكي مع بيانات التواصل
-const triggerParentAlert = (player) => {
-  alert(`🚨 [تنبيه الغياب الإداري]\n\nاللاعب: ${player.name} تم تسجيله (غائب).\nيرجى من الإدارة أو المدرب التواصل فوراً مع ولي الأمر لإشعاره بعدم حضور الابن.\n📞 رقم ولي الأمر: ${player.parent_phone}`);
+// جلب التحضير السابق لنفس اليوم إن وجد لإجراء التعديلات
+const fetchAttendance = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API}/api/sessions/${sessionId}/attendance?date=${selectedDate.value}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      const savedAttendance = await response.json();
+      savedAttendance.forEach(rec => {
+        attendanceMap.value[rec.player_id] = rec.status;
+      });
+    }
+  } catch (err) {
+    console.error(err);
+  }
 };
 
-// حفظ البيانات في قاعدة البيانات
+const setPlayerStatus = (playerId, status) => {
+  attendanceMap.value[playerId] = status;
+};
+
 const saveAttendance = async () => {
-  errorMsg.value = '';
-  successMsg.value = '';
-
-  // التأكد من أن جميع اللاعبين تم تحديد حالتهم
-  const hasUnmarked = players.value.some(p => p.status === 'unmarked');
-  if (hasUnmarked) {
-    errorMsg.value = 'الرجاء تحديد حالة (حاضر أو غائب) لجميع اللاعبين قبل الحفظ النهائي.';
-    return;
-  }
-
-  // تجهيز القائمة النظيفة لإرسالها
-  const attendancePayload = {
-    package_id: selectedPackage.value,
-    date: attendanceDate.value,
-    attendance_list: players.value.map(p => ({ player_id: p.id, status: p.status }))
-  };
+  const records = Object.keys(attendanceMap.value).map(playerId => ({
+    player_id: parseInt(playerId),
+    status: attendanceMap.value[playerId]
+  }));
 
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:5000/api/attendance', {
+    const response = await fetch(`${API}/api/sessions/${sessionId}/attendance`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(attendancePayload)
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        date: selectedDate.value,
+        records
+      })
     });
 
-    const data = await response.json();
     if (response.ok) {
-      successMsg.value = data.message;
+      alert('تم حفظ الحضور والغياب لهذه الحصة التدريبية بنجاح! 🎉');
+      router.push('/schedule');
     } else {
-      errorMsg.value = data.message;
+      alert('حدث خطأ أثناء حفظ كشف التحضير.');
     }
   } catch (error) {
-    errorMsg.value = 'فشل الاتصال بالسيرفر لحفظ كشف التحضير.';
+    console.error('Error saving attendance:', error);
   }
 };
 </script>
 
 <style scoped>
-.attendance-container { display: flex; justify-content: center; padding: 40px 20px; background: #f1f5f9; min-height: 100vh; direction: rtl; font-family: sans-serif; }
-.attendance-card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; max-width: 950px; }
+.attendance-container { padding: 30px; background: #f8fafc; min-height: 100vh; direction: rtl; font-family: sans-serif; }
+.back-bar { max-width: 800px; margin: 0 auto 20px auto; }
+.btn-back { padding: 10px 15px; border: none; background: #64748b; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; }
 
-h2 { text-align: center; color: #0f172a; margin: 0; font-size: 24px; }
-.subtitle { text-align: center; color: #64748b; font-size: 14px; margin-top: 5px; margin-bottom: 25px; }
+.attendance-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; }
 
-.filter-section { display: flex; gap: 20px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 25px; }
-.form-group { flex: 1; display: flex; flex-direction: column; text-align: right; }
-label { font-weight: 600; margin-bottom: 6px; color: #334155; font-size: 14px; }
-.select-input, .date-input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; background: white; width: 100%; }
+.session-info-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+.info-meta h2 { margin: 0 0 5px 0; color: #1e3a8a; }
+.info-meta p { margin: 0; color: #64748b; font-size: 14px; }
 
-.divider { border: 0; height: 1px; background: #e2e8f0; margin-bottom: 25px; }
+.date-picker-box { display: flex; flex-direction: column; gap: 6px; }
+.date-picker-box label { font-size: 13px; font-weight: bold; color: #475569; }
+.date-picker-box input { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; }
 
-.lists-wrapper { display: grid; grid-template-columns: 1.2fr 1fr; gap: 25px; margin-bottom: 35px; }
-.list-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; }
-.list-box h3 { margin-top: 0; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px; }
+.attendance-table { width: 100%; border-collapse: collapse; text-align: right; }
+.attendance-table th { padding: 12px; background: #f8fafc; color: #475569; font-size: 14px; border-bottom: 2px solid #e2e8f0; }
+.attendance-table td { padding: 15px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
 
-.players-scroll { max-height: 400px; overflow-y: auto; padding-left: 5px; }
-.player-item { display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #e2e8f0; transition: all 0.3s; }
-.player-item.present { border-right: 5px solid #22c55e; background: #f0fdf4; }
-.player-item.absent { border-right: 5px solid #ef4444; background: #fee2e2; }
+.player-name { font-weight: bold; color: #1e293b; }
+.member-badge { background: #f1f5f9; color: #475569; font-weight: bold; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
 
-.player-info { display: flex; align-items: center; gap: 10px; }
-.member-badge { background: #e2e8f0; font-size: 11px; font-weight: bold; padding: 3px 6px; border-radius: 4px; color: #475569; }
+/* مفاتيح التحديد الدائرية الجذابة */
+.status-selector { display: flex; gap: 10px; justify-content: center; }
+.btn-status { border: 1px solid #e2e8f0; background: white; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; color: #64748b; transition: all 0.2s; }
 
-.action-buttons { display: flex; gap: 8px; }
-.btn-present-sm { background: #22c55e; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
-.btn-absent-sm { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
-button:hover { opacity: 0.85; }
+.btn-status.present:hover, .btn-status.present.active { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.btn-status.late:hover, .btn-status.late.active { background: #fef9c3; color: #a16207; border-color: #fef08a; }
+.btn-status.absent:hover, .btn-status.absent.active { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
 
-.side-lists { display: flex; flex-direction: column; gap: 20px; }
-.compact-list { max-height: 160px; overflow-y: auto; }
-.compact-item { display: flex; justify-content: space-between; background: white; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; font-size: 13px; font-weight: 500; border: 1px dashed #cbd5e1; }
+.empty-players { text-align: center; padding: 40px; color: #ef4444; font-weight: bold; line-height: 1.8; }
 
-.badge-success { background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-.badge-danger { background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; animation: pulse 2s infinite; }
+.footer-actions { margin-top: 30px; text-align: center; }
+.btn-save-attendance { background: #10b981; color: white; border: none; padding: 12px 35px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2); }
+.btn-save-attendance:hover { background: #059669; }
 
-.text-success { color: #16a34a; }
-.text-danger { color: #dc2626; }
-
-.submit-section { text-align: center; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-.btn-submit-attendance { background: #3b82f6; color: white; border: none; padding: 14px 40px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2); }
-.btn-submit-attendance:hover { background: #2563eb; }
-
-.info-msg { background: #eff6ff; color: #1d4ed8; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; }
-.error-msg { background: #fff5f5; color: #c53030; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; }
-
-.error-msg-text { color: #ef4444; font-weight: bold; margin-bottom: 10px; }
-.success-msg-text { color: #22c55e; font-weight: bold; margin-bottom: 10px; }
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .6; }
-}
+.loading { text-align: center; font-size: 18px; font-weight: bold; padding: 50px; }
 </style>
