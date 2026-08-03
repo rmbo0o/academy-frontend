@@ -27,6 +27,54 @@
         <h2>أهلاً بك: {{ userName }} 👋</h2>
       </header>
 
+      <!-- أزرار إجراءات سريعة للمدير العام -->
+      <div v-if="userRole === 'admin'" class="quick-actions">
+        <button class="quick-action-btn add-coach-btn" @click="openAddCoachModal">➕ إضافة مدرب جديد</button>
+      </div>
+
+      <!-- نافذة منبثقة لإضافة مدرب جديد -->
+      <div v-if="showCoachModal" class="modal-overlay" @click.self="closeAddCoachModal">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>➕ إضافة مدرب جديد</h3>
+            <button class="modal-close" @click="closeAddCoachModal">✕</button>
+          </div>
+          <p class="modal-subtitle">أنشئ حساب مدرب ليتمكن من تسجيل الدخول وإدارة حصصه</p>
+
+          <form @submit.prevent="addCoach">
+            <div class="form-group">
+              <label>اسم المدرب <span class="req">*</span></label>
+              <input type="text" v-model="coachForm.name" required placeholder="مثال: كابتن أحمد محمد" />
+            </div>
+            <div class="form-group">
+              <label>البريد الإلكتروني <span class="req">*</span></label>
+              <input type="email" v-model="coachForm.email" required placeholder="coach@academy.com" />
+            </div>
+            <div class="form-group">
+              <label>كلمة المرور <span class="req">*</span></label>
+              <input type="password" v-model="coachForm.password" required placeholder="كلمة مرور الدخول" minlength="6" />
+            </div>
+            <div class="form-group">
+              <label>نوع الحساب</label>
+              <select v-model="coachForm.role" class="branch-selector-input">
+                <option value="coach">مدرب</option>
+                <option value="branch_manager">مدير فرع</option>
+              </select>
+            </div>
+
+            <p v-if="coachError" class="coach-error">⚠️ {{ coachError }}</p>
+            <p v-if="coachSuccess" class="coach-success">✅ {{ coachSuccess }}</p>
+
+            <div class="modal-actions">
+              <button type="button" class="btn-cancel" @click="closeAddCoachModal">إلغاء</button>
+              <button type="submit" class="btn-save" :disabled="coachSaving">
+                {{ coachSaving ? 'جاري الحفظ...' : '💾 حفظ المدرب' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <!-- اختيار الفرع (متاح للمدير العام فقط) -->
       <div v-if="userRole === 'admin'" class="branch-selector-card">
         <label class="branch-selector-label">🏢 اختيار الفرع لعرض بياناته:</label>
@@ -102,6 +150,53 @@ const branches = ref([]);
 const selectedBranchId = ref('');
 const branchSummary = ref(null);
 const selectedBranchName = ref('');
+
+// متغيرات إضافة مدرب جديد (نافذة منبثقة)
+const showCoachModal = ref(false);
+const coachSaving = ref(false);
+const coachError = ref('');
+const coachSuccess = ref('');
+const coachForm = ref({ name: '', email: '', password: '', role: 'coach' });
+
+const openAddCoachModal = () => {
+  coachForm.value = { name: '', email: '', password: '', role: 'coach' };
+  coachError.value = '';
+  coachSuccess.value = '';
+  showCoachModal.value = true;
+};
+
+const closeAddCoachModal = () => {
+  if (coachSaving.value) return;
+  showCoachModal.value = false;
+};
+
+const addCoach = async () => {
+  coachError.value = '';
+  coachSuccess.value = '';
+  coachSaving.value = true;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(API + '/api/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(coachForm.value)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      coachSuccess.value = data.message;
+      setTimeout(() => closeAddCoachModal(), 1500);
+    } else {
+      coachError.value = data.message || 'حدث خطأ أثناء الحفظ';
+    }
+  } catch (error) {
+    coachError.value = 'فشل الاتصال بالسيرفر';
+  } finally {
+    coachSaving.value = false;
+  }
+};
 
 // جلب قائمة الفروع
 const fetchBranches = async () => {
@@ -217,6 +312,34 @@ header { margin-bottom: 30px; }
 .branch-selector-label { font-weight: bold; color: #1e293b; font-size: 14px; }
 .branch-selector-input { padding: 10px 14px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-weight: bold; background: #f8fafc; outline: none; min-width: 260px; }
 .branch-selector-input:focus { border-color: #2563eb; background: white; }
+
+/* أزرار الإجراءات السريعة */
+.quick-actions { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.quick-action-btn { padding: 12px 22px; border: none; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; color: white; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.add-coach-btn { background: #10b981; }
+.add-coach-btn:hover { background: #059669; transform: translateY(-1px); }
+
+/* النافذة المنبثقة */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(3px); }
+.modal-box { background: white; border-radius: 16px; padding: 28px; width: 100%; max-width: 420px; box-shadow: 0 25px 60px rgba(0,0,0,0.3); direction: rtl; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.modal-header h3 { color: #1e3a8a; margin: 0; }
+.modal-close { background: #f1f5f9; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 14px; cursor: pointer; color: #64748b; }
+.modal-close:hover { background: #e2e8f0; }
+.modal-subtitle { color: #64748b; font-size: 13px; margin: 4px 0 18px 0; }
+.modal-box .form-group { display: flex; flex-direction: column; margin-bottom: 14px; }
+.modal-box label { font-weight: bold; margin-bottom: 5px; color: #334155; font-size: 13px; }
+.modal-box .req { color: #ef4444; }
+.modal-box input, .modal-box select { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; width: 100%; box-sizing: border-box; }
+.modal-box input:focus, .modal-box select:focus { border-color: #2563eb; }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.btn-cancel { flex: 1; padding: 11px; border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.btn-cancel:hover { background: #f1f5f9; }
+.btn-save { flex: 2; padding: 11px; border: none; background: #10b981; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.btn-save:hover { background: #059669; }
+.btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
+.coach-error { color: #ef4444; background: #fee2e2; padding: 9px; border-radius: 6px; font-weight: bold; text-align: center; margin: 10px 0 0 0; }
+.coach-success { color: #10b981; background: #dcfce7; padding: 9px; border-radius: 6px; font-weight: bold; text-align: center; margin: 10px 0 0 0; }
 
 .branch-summary-card { background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25); }
 .branch-summary-card h3 { margin: 0 0 18px 0; font-size: 17px; }
