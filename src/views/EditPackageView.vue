@@ -28,6 +28,16 @@
         </div>
 
         <div class="form-group">
+          <label>المدرب المسؤول عن الباقة <span class="req">*</span></label>
+          <select v-model="form.coach_id" required>
+            <option value="" disabled>-- اختر المدرب المسؤول --</option>
+            <option v-for="coach in coaches" :key="coach.id" :value="coach.id">
+              {{ coach.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label>العدد الأقصى للمشتركين</label>
           <input type="number" v-model.number="form.max_subscribers" min="0" />
         </div>
@@ -99,10 +109,20 @@ const saving = ref(false);
 
 const form = ref({});
 const durations = ref([]);
+const coaches = ref([]);
 
 onMounted(async () => {
+  const token = localStorage.getItem('token');
   try {
-    const token = localStorage.getItem('token');
+    const resCoaches = await fetch(API + '/api/coaches', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (resCoaches.ok) coaches.value = await resCoaches.json();
+  } catch (err) {
+    console.error('خطأ في جلب المدربين:', err);
+  }
+
+  try {
     const res = await fetch(`${API}/api/packages/${packageId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -111,6 +131,7 @@ onMounted(async () => {
       form.value = {
         sport_name: pkg.sport_name || '',
         name: pkg.name || '',
+        coach_id: pkg.coach_id || '',
         max_subscribers: pkg.max_subscribers || 0
       };
       selectedDays.value = pkg.days ? pkg.days.split(' - ') : [];

@@ -39,6 +39,17 @@
             <input type="text" v-model="form.name" placeholder="مثال: الفئة السنية 6-8 سنوات" />
           </div>
 
+          <!-- 2. المدرب المسؤول عن الباقة -->
+          <div class="form-group">
+            <label>المدرب المسؤول عن هذه الباقة *</label>
+            <select v-model="form.coach_id" class="input-highlight">
+                <option value="" disabled selected>-- اختر المدرب المسؤول --</option>
+                <option v-for="coach in coaches" :key="coach.id" :value="coach.id">
+                    {{ coach.name }}
+                </option>
+            </select>
+          </div>
+
           <!-- 3. الحقل الجديد: عدد المشتركين المسموح به -->
           <div class="form-group">
             <label>العدد المسموح به للمشتركين في هذه الباقة *</label>
@@ -135,13 +146,14 @@
 
 <script setup>
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const currentStep = ref(1);
 const errorMsg = ref('');
 const successMsg = ref('');
+const coaches = ref([]);
 
 const daysOptions = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 const selectedDays = ref([]);
@@ -152,6 +164,7 @@ const timeTo = ref('');
 const form = ref({
   sport_name: '', 
   name: '',
+  coach_id: '',
   days: '',
   session_time: '',
   max_subscribers: 0,
@@ -160,6 +173,19 @@ const form = ref({
     price: null,
     is_active: false
   }))
+});
+
+// جلب قائمة المدربين المتاحين
+onMounted(async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(API + '/api/coaches', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) coaches.value = await res.json();
+  } catch (err) {
+    console.error('خطأ في جلب المدربين:', err);
+  }
 });
 
 const goToStep2 = () => {
@@ -173,8 +199,8 @@ const goToStep2 = () => {
     form.value.session_time = '';
   }
 
-  if (!form.value.sport_name.trim() || !form.value.name.trim() || selectedDays.value.length === 0 || !form.value.session_time || form.value.max_subscribers === null) {
-    errorMsg.value = 'الرجاء كتابة اسم الرياضة، اسم الباقة، تحديد الحد الأقصى للمشتركين، واختيار الأيام والوقت.';
+  if (!form.value.sport_name.trim() || !form.value.name.trim() || !form.value.coach_id || selectedDays.value.length === 0 || !form.value.session_time || form.value.max_subscribers === null) {
+    errorMsg.value = 'الرجاء كتابة اسم الرياضة، اسم الباقة، تحديد المدرب المسؤول، تحديد الحد الأقصى للمشتركين، واختيار الأيام والوقت.';
     return;
   }
   currentStep.value = 2;

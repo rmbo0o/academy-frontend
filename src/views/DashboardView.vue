@@ -25,7 +25,28 @@
       <header>
         <h2>أهلاً بك: {{ userName }} 👋</h2>
       </header>
-      
+
+      <!-- اختيار الفرع (متاح للمدير العام فقط) -->
+      <div v-if="userRole === 'admin'" class="branch-selector-card">
+        <label class="branch-selector-label">🏢 اختيار الفرع لعرض بياناته:</label>
+        <select v-model="selectedBranchId" @change="onBranchChange" class="branch-selector-input">
+          <option value="">-- كل الفروع --</option>
+          <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+            {{ branch.name }} - {{ branch.city }}
+          </option>
+        </select>
+      </div>
+
+      <!-- بطاقة ملخص بيانات الفرع المحدد -->
+      <div v-if="selectedBranchId && branchSummary" class="branch-summary-card">
+        <h3>📊 ملخص {{ selectedBranchName }}</h3>
+        <div class="branch-stats">
+          <div class="stat-box"><span class="stat-value">{{ branchSummary.total_players }}</span><span class="stat-label">👥 إجمالي اللاعبين</span></div>
+          <div class="stat-box"><span class="stat-value">{{ branchSummary.total_subscriptions }}</span><span class="stat-label">💳 اشتراكات نشطة</span></div>
+          <div class="stat-box"><span class="stat-value">{{ branchSummary.total_revenue }}</span><span class="stat-label">💰 إجمالي الإيرادات</span></div>
+        </div>
+      </div>
+
       <!-- كرت البحث السريع عن اللاعب الذكي -->
       <div class="card">
         <h3>🔍 البحث السريع والوصول لملف لاعب:</h3>
@@ -75,6 +96,43 @@ const searchQuery = ref('');
 const searchResults = ref([]);
 const searchTimeout = ref(null);
 
+// متغيرات اختيار الفرع (للمدير العام)
+const branches = ref([]);
+const selectedBranchId = ref('');
+const branchSummary = ref(null);
+const selectedBranchName = ref('');
+
+// جلب قائمة الفروع
+const fetchBranches = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(API + '/api/branches', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) branches.value = await response.json();
+  } catch (error) {
+    console.error('خطأ في جلب الفروع:', error);
+  }
+};
+
+// عند اختيار فرع يتم جلب ملخص بياناته وتخزين الاختيار
+const onBranchChange = async () => {
+  localStorage.setItem('selectedBranchId', selectedBranchId.value);
+  branchSummary.value = null;
+  if (!selectedBranchId.value) return;
+  const branch = branches.value.find(b => b.id === parseInt(selectedBranchId.value));
+  selectedBranchName.value = branch ? branch.name : '';
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API}/api/branches/${selectedBranchId.value}/summary`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) branchSummary.value = await response.json();
+  } catch (error) {
+    console.error('خطأ في جلب ملخص الفرع:', error);
+  }
+};
+
 // دالة البحث الفوري بالاسم أو رقم العضوية
 const searchPlayers = async () => {
   if (searchTimeout.value) clearTimeout(searchTimeout.value);
@@ -108,6 +166,13 @@ onMounted(async () => {
       const payload = JSON.parse(atob(token.split('.')[1]));
       userName.value = payload.username || 'المستخدم';
       userRole.value = payload.role || 'coach';
+      if (userRole.value === 'admin') {
+        await fetchBranches();
+        selectedBranchId.value = localStorage.getItem('selectedBranchId') || '';
+        if (selectedBranchId.value) {
+          await onBranchChange();
+        }
+      }
     } catch (e) {
       console.error('خطأ في قراءة بيانات التوكن', e);
     }
@@ -145,6 +210,19 @@ header { margin-bottom: 30px; }
 .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
 .card h3 { color: #0f172a; margin-top: 0; margin-bottom: 10px; }
 .secure-text { color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.6; }
+
+/* اختيار الفرع للمدير العام */
+.branch-selector-card { background: white; padding: 18px 25px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+.branch-selector-label { font-weight: bold; color: #1e293b; font-size: 14px; }
+.branch-selector-input { padding: 10px 14px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-weight: bold; background: #f8fafc; outline: none; min-width: 260px; }
+.branch-selector-input:focus { border-color: #2563eb; background: white; }
+
+.branch-summary-card { background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25); }
+.branch-summary-card h3 { margin: 0 0 18px 0; font-size: 17px; }
+.branch-stats { display: flex; gap: 20px; flex-wrap: wrap; }
+.stat-box { background: rgba(255,255,255,0.12); border-radius: 10px; padding: 16px 24px; display: flex; flex-direction: column; align-items: center; min-width: 130px; }
+.stat-value { font-size: 26px; font-weight: bold; }
+.stat-label { font-size: 12px; opacity: 0.85; margin-top: 4px; }
 
 /* 🌟 تنسيق صندوق البحث الجديد */
 .lookup-box { display: flex; gap: 15px; align-items: center; margin-top: 15px; }

@@ -21,26 +21,6 @@
             </option>
           </select>
         </div>
-
-        <div class="form-group">
-          <label>اختر الكابتن المدرب:</label>
-          <select v-model="form.coach_id" class="form-input">
-            <option value="">-- اختر المدرب المسؤول --</option>
-            <option v-for="coach in coaches" :key="coach.id" :value="coach.id">
-              {{ coach.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>الفرع (اختياري):</label>
-          <select v-model="form.branch_id" class="form-input">
-            <option value="">-- بدون تحديد فرع --</option>
-            <option v-for="branch in branches" :key="branch.id" :value="branch.id">
-              {{ branch.name }}
-            </option>
-          </select>
-        </div>
       </div>
 
       <!-- معاينة سريعة لبيانات الباقة بمجرد الاختيار -->
@@ -48,6 +28,7 @@
         <span>⏱️ <strong>توقيت الحصة:</strong> {{ selectedPackage.session_time }}</span>
         <span>📅 <strong>أيام التمرين بالأسبوع:</strong> {{ selectedPackage.days }}</span>
         <span>👥 <strong>الحد الأقصى للمشتركين:</strong> {{ selectedPackage.max_subscribers || 'مفتوح' }} لاعب</span>
+        <span>🏃‍♂️ <strong>المدرب المسؤول:</strong> {{ selectedPackage.coach_name || 'غير محدد' }}</span>
       </div>
 
       <button @click="createSession" class="btn-submit">💾 تفعيل الحصة وحفظها بالجدول الأسبوعي</button>
@@ -93,16 +74,12 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 const sessions = ref([]);
 const packages = ref([]);
-const coaches = ref([]);
-const branches = ref([]);
 const currentUser = ref(null);
 
 const daysOfWeek = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 
 const form = ref({
-  package_id: '',
-  coach_id: '',
-  branch_id: ''
+  package_id: ''
 });
 
 // استخراج الباقة المحددة لمعاينتها
@@ -144,8 +121,6 @@ onMounted(async () => {
   await fetchSessions();
   if (isAdmin.value) {
     await fetchPackages();
-    await fetchCoaches();
-    await fetchBranches();
   }
 });
 
@@ -173,33 +148,9 @@ const fetchPackages = async () => {
   }
 };
 
-const fetchCoaches = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(API + '/api/coaches', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) coaches.value = await response.json();
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const fetchBranches = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(API + '/api/branches', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) branches.value = await response.json();
-  } catch (err) {
-    console.error(err);
-  }
-};
-
 const createSession = async () => {
-  if (!form.value.package_id || !form.value.coach_id) {
-    alert('الرجاء اختيار الباقة الرياضية وتعيين الكابتن لحفظ الحصة!');
+  if (!form.value.package_id) {
+    alert('الرجاء اختيار الباقة الرياضية لحفظ الحصة!');
     return;
   }
   try {
@@ -210,13 +161,11 @@ const createSession = async () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(form.value)
+      body: JSON.stringify({ package_id: form.value.package_id })
     });
     if (response.ok) {
       alert('تم إدراج الحصة بجدول التمارين بنجاح! ⚽');
       form.value.package_id = '';
-      form.value.coach_id = '';
-      form.value.branch_id = '';
       await fetchSessions();
     }
   } catch (err) {
@@ -224,12 +173,16 @@ const createSession = async () => {
   }
 };
 
+// توحيد كتابة الحروف العربية (همزة فوق وتحت وتحت) لمنع عدم تطابق أسماء الأيام
+const normalizeArabic = (str) => String(str || '').replace(/[أإآ]/g, 'ا');
+
 // تصفية ذكية لفصل الأيام من سلسلة نصية وتوزيعها بالشبكة
 const getSessionsByDay = (day) => {
+  const normalizedDay = normalizeArabic(day);
   return sessions.value.filter(session => {
     if (!session.day_of_week) return false;
-    const cleanDays = session.day_of_week.split(/[-–,،\s]+/).map(d => d.trim());
-    return cleanDays.includes(day);
+    const cleanDays = session.day_of_week.split(/[-–,،\s]+/).map(d => normalizeArabic(d).trim());
+    return cleanDays.includes(normalizedDay);
   });
 };
 

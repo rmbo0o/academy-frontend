@@ -9,15 +9,30 @@
 
       <form @submit.prevent="submitSubscription">
         
-        <!-- 1. اختيار اللاعب -->
+        <!-- 1. اختيار اللاعب (بحث فوري بالاسم أو رقم المشترك) -->
         <div class="form-group">
           <label>اللاعب المشترك:</label>
-          <select v-model="form.player_id" required class="form-input">
-            <option value="" disabled>-- اختر اللاعب --</option>
-            <option v-for="player in players" :key="player.id" :value="player.id">
-              {{ player.name }} (#{{ player.member_number || 'بدون رقم' }})
-            </option>
-          </select>
+          <div class="player-search-wrapper">
+            <input 
+              type="text" 
+              v-model="playerSearch" 
+              placeholder="🔍 اكتب اسم اللاعب أو رقم المشترك للبحث..."
+              class="form-input"
+              @input="playerSearchInput"
+            />
+            <div v-if="filteredPlayers.length > 0" class="search-results-dropdown">
+              <div 
+                v-for="player in filteredPlayers" 
+                :key="player.id" 
+                class="search-result-item"
+                @click="selectPlayer(player)"
+              >
+                <span class="player-name-text">{{ player.name }}</span>
+                <span class="player-member-text">#{{ player.member_number || 'بدون رقم' }}</span>
+              </div>
+            </div>
+          </div>
+          <p v-if="selectedPlayer" class="selected-player-note">✅ تم اختيار: {{ selectedPlayer.name }} (#{{ selectedPlayer.member_number || 'بدون رقم' }})</p>
         </div>
 
         <div class="row">
@@ -114,6 +129,10 @@ const packageAgeRange = ref('');
 const ageMismatch = ref(false);
 const bypassAgeRestriction = ref(false);
 
+// متغيرات البحث الفوري عن اللاعب
+const playerSearch = ref('');
+const selectedPlayer = ref(null);
+
 // استخراج صلاحية المستخدم من التوكن
 const userRole = ref('');
 const initUserRole = () => {
@@ -126,6 +145,31 @@ const initUserRole = () => {
   }
 };
 initUserRole();
+
+// الفلترة الفورية لقائمة اللاعبين حسب الاسم أو رقم المشترك
+const filteredPlayers = computed(() => {
+  const q = playerSearch.value.trim().toLowerCase();
+  if (!q) return [];
+  return players.value.filter(p =>
+    (p.name || '').toLowerCase().includes(q) ||
+    (p.member_number || '').toLowerCase().includes(q)
+  ).slice(0, 8);
+});
+
+// عند تغيير نص البحث يتم إلغاء الاختيار السابق تلقائياً
+const playerSearchInput = () => {
+  if (playerSearch.value !== (selectedPlayer.value?.name || '')) {
+    selectedPlayer.value = null;
+    form.value.player_id = '';
+  }
+};
+
+// اختيار لاعب من نتائج البحث
+const selectPlayer = (player) => {
+  selectedPlayer.value = player;
+  playerSearch.value = player.name;
+  form.value.player_id = player.id;
+};
 
 // نموذج إرسال البيانات للسيرفر
 const form = ref({
@@ -270,6 +314,12 @@ const submitSubscription = async () => {
   errorMsg.value = '';
   successMsg.value = '';
 
+  // 🛑 0. التأكد من اختيار لاعب من نتائج البحث
+  if (!selectedPlayer.value || !form.value.player_id) {
+    errorMsg.value = 'يرجى اختيار اللاعب من نتائج البحث أولاً.';
+    return;
+  }
+
   // 🛑 3. الفحص والمنع الفوري على الواجهة قبل الذهاب للسيرفر
   if (selectedPackageObj.value) {
     const { max_subscribers, current_subscribers, package_name } = selectedPackageObj.value;
@@ -303,6 +353,8 @@ const submitSubscription = async () => {
       form.value.player_id = '';
       form.value.duration_id = '';
       selectedSport.value = '';
+      selectedPlayer.value = null;
+      playerSearch.value = '';
       await loadData(); // إعادة تحديث العدادات من السيرفر مباشرة
     } else {
       errorMsg.value = data.message;
@@ -343,6 +395,16 @@ label { font-weight: 600; margin-bottom: 6px; color: #334155; font-size: 14px; }
 
 .age-warning-box { background-color: #fffbeb; border: 1px solid #fde047; color: #854d0e; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
 .age-warning-box p { margin: 0; font-weight: bold; }
+
+/* صندوق البحث الفوري عن اللاعب */
+.player-search-wrapper { position: relative; }
+.search-results-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); z-index: 100; max-height: 250px; overflow-y: auto; margin-top: 4px; }
+.search-result-item { display: flex; justify-content: space-between; align-items: center; padding: 11px 14px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid #f1f5f9; }
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: #eff6ff; }
+.player-name-text { font-weight: bold; color: #1e293b; font-size: 14px; }
+.player-member-text { color: #64748b; font-size: 12px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; }
+.selected-player-note { margin-top: 6px; color: #16a34a; font-size: 13px; font-weight: bold; }
 
 .bypass-section { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 15px; margin-bottom: 15px; }
 .override-option { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #1e40af; flex-wrap: wrap; }
