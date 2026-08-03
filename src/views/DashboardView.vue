@@ -11,6 +11,7 @@
         <li v-if="userRole === 'admin'" @click="router.push('/branches')" style="color: white; font-weight: bold;">🏢 إدارة الفروع المتعددة</li>
         <li @click="router.push('/register-player')">📝 تسجيل مشترك جديد</li>
         <li v-if="userRole === 'admin'" @click="router.push('/create-package')">📦 إنشاء حزمة جديدة</li>
+        <li v-if="userRole === 'admin'" @click="router.push('/coaches')">👨‍🏫 إدارة المدربين</li>
         <li @click="router.push('/create-subscription')" style="color: white; font-weight: bold;">💳 تسجيل اشتراك جديد</li>
         <li @click="router.push('/schedule')" style="color: white; font-weight: bold;">📋 متابعة الحضور والغياب</li>
         <li v-if="userRole === 'admin'" @click="router.push('/reports')" style="color: white; font-weight: bold;">📊 التقارير المالية والرياضية</li>

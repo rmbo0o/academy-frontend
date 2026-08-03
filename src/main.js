@@ -6,6 +6,21 @@ import router from './router'
 
 const app = createApp(App)
 
+// اعتراض عالمي للردود: عند انتهاء صلاحية التوكن أو عدم صحته نعيد المستخدم لصفحة الدخول تلقائياً
+const originalFetch = window.fetch;
+window.fetch = async (url, options = {}) => {
+  const response = await originalFetch(url, options);
+  const method = (options.method || 'GET').toUpperCase();
+  const isAuthCall = String(url).includes('/api/login');
+  if (!isAuthCall && (response.status === 401 || (response.status === 403 && method === 'GET'))) {
+    localStorage.removeItem('token');
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+    }
+  }
+  return response;
+};
+
 // حماية المسارات (Route Guards)
 router.beforeEach((to, from) => {
   const token = localStorage.getItem('token');

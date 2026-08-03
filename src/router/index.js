@@ -46,6 +46,12 @@ const router = createRouter({
   component: CreatePackageView
     },
     {
+  path: '/coaches',
+  name: 'Coaches',
+  component: () => import('@/views/CoachesView.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
   path: '/edit-package/:id',
   name: 'EditPackage',
   component: EditPackageView,
