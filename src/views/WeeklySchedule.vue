@@ -5,7 +5,10 @@
     </div>
     <div class="header-section">
       <h2>📅 جدول الحصص والتمارين الأسبوعي التفاعلي</h2>
-      <p class="subtitle">يتم سحب الأوقات والأيام تلقائياً بناءً على الباقات المحددة، مع توفير تحضير حصري للمدرب المسؤول.</p>
+      <p class="subtitle">
+        <span v-if="isCoach">🏃‍♂️ هذه حصصك التدريبية الخاصة بك فقط — قم بتحضير الحضور والغياب مباشرة.</span>
+        <span v-else>يتم سحب الأوقات والأيام تلقائياً بناءً على الباقات المحددة، مع توفير تحضير حصري للمدرب المسؤول.</span>
+      </p>
     </div>
 
     <!-- 🛠️ نموذج إضافة حصة تدريبية جديدة (يظهر للأدمن والمدير فقط) -->
@@ -90,6 +93,11 @@ const selectedPackage = computed(() => {
 // فحص صلاحية الأدمن
 const isAdmin = computed(() => {
   return currentUser.value?.role === 'admin' || currentUser.value?.role === 'المدير العام';
+});
+
+// فحص إذا كان المستخدم الحالي مدرباً
+const isCoach = computed(() => {
+  return currentUser.value?.role === 'coach' || currentUser.value?.role === 'مدرب';
 });
 
 // التحقق من تصريح التحضير للمدرب المسؤول أو الأدمن
