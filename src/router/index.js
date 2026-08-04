@@ -33,17 +33,20 @@ const router = createRouter({
     {
   path: '/register-player',
   name: 'RegisterPlayer',
-  component: RegisterPlayerView
+  component: RegisterPlayerView,
+  meta: { requiresAuth: true, permission: 'players' }
     },
     {
   path: '/create-subscription',
   name: 'CreateSubscription',
-  component: CreateSubscriptionView
+  component: CreateSubscriptionView,
+  meta: { requiresAuth: true, permission: 'subscriptions' }
     },
     {
   path: '/create-package',
   name: 'CreatePackage',
-  component: CreatePackageView
+  component: CreatePackageView,
+  meta: { requiresAuth: true, permission: 'packages' }
     },
     {
   path: '/coaches',
@@ -55,55 +58,55 @@ const router = createRouter({
   path: '/edit-package/:id',
   name: 'EditPackage',
   component: EditPackageView,
-  meta: { requiresAuth: true, requiresAdmin: true }
+  meta: { requiresAuth: true, permission: 'packages' }
     },
     {
       path: '/holidays',
       name: 'Holidays',
       component: () => import('@/views/HolidaysView.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true }
+      meta: { requiresAuth: true, permission: 'holidays' }
     },
     {
       path: '/evaluations',
       name: 'Evaluations',
       component: () => import('@/views/EvaluationsView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, permission: 'evaluations' }
     },
     {
     path: '/reports',
     name: 'reports',
     component: ReportsView,
-    meta: { requiresAuth: true, requiresAdmin: true } // حماية مخصصة للأدمن فقط
+    meta: { requiresAuth: true, permission: 'reports' }
   },
   {
     path: '/branches',
     name: 'branches',
     component: BranchesView,
-    meta: { requiresAuth: true, requiresAdmin: true } // حماية مخصصة للأدمن فقط
+    meta: { requiresAuth: true, permission: 'branches' }
   },
   {
   path: '/players/:id',
   name: 'PlayerProfile',
   component: PlayerProfile,
-  meta: { requiresAuth: true } 
+  meta: { requiresAuth: true, permission: 'players' }
   },
   {
     path: '/players/:id/edit',
     name: 'EditPlayer',
     component: EditPlayerView,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, permission: 'players' }
   },
   {
     path: '/schedule',
     name: 'WeeklySchedule',
     component: WeeklySchedule,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, permission: 'schedule' }
   },
   {
     path: '/session-attendance/:id',
     name: 'SessionAttendance',
     component: SessionAttendance,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, permission: 'schedule' }
   }
   ]
 })
