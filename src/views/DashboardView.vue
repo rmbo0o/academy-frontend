@@ -57,6 +57,31 @@
         </div>
       </div>
 
+      <!-- آخر المشتركين المسجلين (حسب الفرع المحدد) -->
+      <div class="card recent-players-card">
+        <h3>🆕 آخر المشتركين المسجلين</h3>
+        <p class="secure-text">
+          {{ selectedBranchName ? 'أحدث 10 مشتركين تم تسجيلهم في فرع: ' + selectedBranchName : 'أحدث 10 مشتركين تم تسجيلهم في النظام' }}
+        </p>
+        <table class="recent-table" v-if="recentPlayers.length > 0">
+          <thead>
+            <tr>
+              <th>رقم العضوية</th>
+              <th>اسم اللاعب</th>
+              <th>تاريخ التسجيل</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in recentPlayers" :key="p.id" class="clickable-row" @click="goToProfile(p.id)">
+              <td><span class="member-badge">{{ p.member_number }}</span></td>
+              <td class="player-name-cell">{{ p.name }}</td>
+              <td class="date-cell">{{ formatDate(p.created_at) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else class="empty-recent">لا يوجد مشتركين مسجلين بعد.</div>
+      </div>
+
       <!-- كرت البحث السريع عن اللاعب الذكي -->
       <div class="card">
         <h3>🔍 البحث السريع والوصول لملف لاعب:</h3>
@@ -137,7 +162,30 @@ const selectedBranchId = ref('');
 const branchSummary = ref(null);
 const selectedBranchName = ref('');
 
+// آخر المشتركين المسجلين
+const recentPlayers = ref([]);
+
 const isBranchManager = computed(() => userRole.value === 'branch_manager');
+
+const formatDate = (d) => {
+  if (!d) return '—';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return String(d);
+  return date.toLocaleDateString('ar-EG');
+};
+
+// جلب آخر 10 مشتركين مسجلين (حسب الفرع المختار تلقائياً)
+const fetchRecentPlayers = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(API + '/api/players/recent?limit=10', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) recentPlayers.value = await response.json();
+  } catch (error) {
+    console.error('خطأ في جلب آخر المشتركين:', error);
+  }
+};
 
 // جلب قائمة الفروع
 const fetchBranches = async () => {
@@ -157,7 +205,10 @@ const onBranchChange = async () => {
   localStorage.setItem('selectedBranchId', selectedBranchId.value);
   branchSummary.value = null;
   selectedBranchName.value = '';
-  if (!selectedBranchId.value) return;
+  if (!selectedBranchId.value) {
+    await fetchRecentPlayers();
+    return;
+  }
   const branch = branches.value.find(b => b.id === parseInt(selectedBranchId.value));
   selectedBranchName.value = branch ? branch.name : '';
   try {
@@ -169,6 +220,7 @@ const onBranchChange = async () => {
   } catch (error) {
     console.error('خطأ في جلب ملخص الفرع:', error);
   }
+  await fetchRecentPlayers();
 };
 
 // دالة البحث الفوري بالاسم أو رقم العضوية
@@ -219,6 +271,8 @@ onMounted(async () => {
       }
     }
   }
+
+  await fetchRecentPlayers();
 });
 
 // دالة الانتقال الذكية لصفحة تعديل بيانات اللاعب
@@ -289,4 +343,15 @@ header { margin-bottom: 30px; }
 .search-result-item:hover { background: #eff6ff; }
 .player-name-text { font-weight: bold; color: #1e293b; font-size: 14px; }
 .player-member-text { color: #64748b; font-size: 13px; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; }
+
+/* آخر المشتركين المسجلين */
+.recent-players-card { margin-top: 20px; }
+.recent-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.recent-table th, .recent-table td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; text-align: right; }
+.recent-table th { background: #f8fafc; color: #475569; font-size: 12px; }
+.clickable-row { cursor: pointer; transition: background 0.15s; }
+.clickable-row:hover { background: #eff6ff; }
+.player-name-cell { font-weight: bold; color: #0f172a; }
+.date-cell { color: #64748b; font-size: 13px; }
+.empty-recent { color: #94a3b8; text-align: center; padding: 20px; }
 </style>

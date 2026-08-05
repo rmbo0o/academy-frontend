@@ -10,17 +10,18 @@
       <div class="session-info-header">
         <div>
           <h2>📝 كشف الحضور والغياب للحصة</h2>
-          <p class="subtitle">قم بتحديد حالة حضور كل لاعب للحصة الرياضية المحدد تاريخها</p>
+          <p class="subtitle">التحضير يتم مرة واحدة فقط — المشترك المُحضَّر لا يظهر مجدداً</p>
         </div>
         <div class="date-picker-box">
           <label>📅 تاريخ الحصة:</label>
-          <input type="date" v-model="selectedDate" @change="fetchAttendance" />
+          <input type="date" v-model="selectedDate" @change="onDateChange" />
         </div>
       </div>
 
-      <!-- 8️⃣ الجدول التفاعلي المعالج بالكامل -->
-      <div class="players-attendance-list">
-        <table class="attendance-table" v-if="players.length > 0">
+      <!-- ✅ التحضير المحفوظ مسبقاً لهذا التاريخ -->
+      <div v-if="isSaved" class="saved-section">
+        <div class="saved-banner">✅ تم تسجيل التحضير لهذا التاريخ مسبقاً (مرة واحدة فقط)</div>
+        <table class="attendance-table">
           <thead>
             <tr>
               <th>رقم المشترك</th>
@@ -29,54 +30,81 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="player in players" :key="player.id">
-              <td><span class="member-badge">{{ player.member_number }}</span></td>
-              <td class="player-name">{{ player.name }}</td>
-              <td>
-                <div class="status-selector">
-                  <button 
-                    type="button" 
-                    @click="setStatus(player.id, 'حاضر')" 
-                    class="btn-status present" 
-                    :class="{ active: attendanceMap[player.id] === 'حاضر' }"
-                  >
-                    🟢 حاضر
-                  </button>
-                  <button 
-                    type="button" 
-                    @click="setStatus(player.id, 'متأخر')" 
-                    class="btn-status late" 
-                    :class="{ active: attendanceMap[player.id] === 'متأخر' }"
-                  >
-                    🟡 متأخر
-                  </button>
-                  <button 
-                    type="button" 
-                    @click="setStatus(player.id, 'غائب')" 
-                    class="btn-status absent" 
-                    :class="{ active: attendanceMap[player.id] === 'غائب' }"
-                  >
-                    🔴 غائب
-                  </button>
-                </div>
+            <tr v-for="rec in savedAttendance" :key="rec.player_id">
+              <td><span class="member-badge">{{ rec.member_number }}</span></td>
+              <td class="player-name">{{ rec.name }}</td>
+              <td style="text-align: center;">
+                <span class="status-text" :class="statusClass(rec.status)">{{ statusLabel(rec.status) }}</span>
               </td>
             </tr>
           </tbody>
         </table>
-
-        <div v-else-if="loading" class="loading-state">
-          🔄 جاري تحميل قائمة المشتركين...
-        </div>
-
-        <div v-else class="empty-state">
-          ⚠️ لا يوجد لاعبون مسجلون في هذه الحصة حالياً.
+        <div class="footer-actions">
+          <button type="button" @click="downloadCSV" class="btn-save">📥 تحميل نسخة من الكشف للكمبيوتر</button>
         </div>
       </div>
 
-      <div class="footer-actions" v-if="players.length > 0">
-        <button type="button" @click="saveAttendance" class="btn-save" :disabled="saving">
-          {{ saving ? 'جاري الحفظ...' : '💾 حفظ كشف الحضور والغياب ⚽' }}
-        </button>
+      <!-- 🆕 كشف تحضير جديد لم يتم حفظه بعد -->
+      <div v-else>
+        <div class="players-attendance-list">
+          <table class="attendance-table" v-if="players.length > 0">
+            <thead>
+              <tr>
+                <th>رقم المشترك</th>
+                <th>اسم اللاعب الكروي</th>
+                <th style="text-align: center;">حالة الحضور والغياب</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="player in players" :key="player.id">
+                <td><span class="member-badge">{{ player.member_number }}</span></td>
+                <td class="player-name">{{ player.name }}</td>
+                <td>
+                  <div class="status-selector">
+                    <button 
+                      type="button" 
+                      @click="setStatus(player.id, 'حاضر')" 
+                      class="btn-status present" 
+                      :class="{ active: attendanceMap[player.id] === 'حاضر' }"
+                    >
+                      🟢 حاضر
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="setStatus(player.id, 'متأخر')" 
+                      class="btn-status late" 
+                      :class="{ active: attendanceMap[player.id] === 'متأخر' }"
+                    >
+                      🟡 متأخر
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="setStatus(player.id, 'غائب')" 
+                      class="btn-status absent" 
+                      :class="{ active: attendanceMap[player.id] === 'غائب' }"
+                    >
+                      🔴 غائب
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div v-else-if="loading" class="loading-state">
+            🔄 جاري تحميل قائمة المشتركين...
+          </div>
+
+          <div v-else class="empty-state">
+            ✔️ لا يوجد مشتركين بانتظار التحضير لهذا التاريخ.
+          </div>
+        </div>
+
+        <div class="footer-actions" v-if="players.length > 0">
+          <button type="button" @click="saveAttendance" class="btn-save" :disabled="saving">
+            {{ saving ? 'جاري الحفظ...' : '💾 حفظ كشف الحضور والغياب ⚽' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -84,7 +112,7 @@
 
 <script setup>
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -92,22 +120,28 @@ const router = useRouter()
 
 const sessionId = route.params.id
 const players = ref([])
+const savedAttendance = ref([])
 const attendanceMap = ref({})
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 const loading = ref(true)
 const saving = ref(false)
 
+const isSaved = computed(() => savedAttendance.value.length > 0)
+
 onMounted(async () => {
-  await fetchPlayers()
   await fetchAttendance()
+  await fetchPlayers()
 })
 
-// جلب قائمة المشتركين
+const statusLabel = (s) => s === 'حاضر' ? '🟢 حاضر' : s === 'متأخر' ? '🟡 متأخر' : s === 'غائب' ? '🔴 غائب' : (s || '—')
+const statusClass = (s) => s === 'حاضر' ? 'present' : s === 'متأخر' ? 'late' : 'absent'
+
+// جلب قائمة المشتركين غير المحضَّرين بعد في هذا التاريخ (النشطون فقط)
 const fetchPlayers = async () => {
   loading.value = true
   try {
     const token = localStorage.getItem('token')
-    const res = await fetch(`${API}/api/sessions/${sessionId}/players`, {
+    const res = await fetch(`${API}/api/sessions/${sessionId}/players?date=${selectedDate.value}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (res.ok) {
@@ -133,8 +167,8 @@ const fetchAttendance = async () => {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (res.ok) {
-      const saved = await res.json()
-      saved.forEach(rec => {
+      savedAttendance.value = await res.json()
+      savedAttendance.value.forEach(rec => {
         attendanceMap.value[rec.player_id] = rec.status
       })
     }
@@ -143,11 +177,18 @@ const fetchAttendance = async () => {
   }
 }
 
+const onDateChange = async () => {
+  attendanceMap.value = {}
+  savedAttendance.value = []
+  await fetchAttendance()
+  await fetchPlayers()
+}
+
 const setStatus = (playerId, status) => {
   attendanceMap.value[playerId] = status
 }
 
-// حفظ الكشف إلى السيرفر
+// حفظ الكشف إلى السيرفر (مرة واحدة لهذا التاريخ)
 const saveAttendance = async () => {
   saving.value = true
   const records = Object.keys(attendanceMap.value).map(playerId => ({
@@ -171,15 +212,35 @@ const saveAttendance = async () => {
 
     if (res.ok) {
       alert('🎉 تم حفظ كشف الحضور بنجاح!')
-      router.push('/schedule')
+      await fetchAttendance()
+      await fetchPlayers()
     } else {
-      alert('حدث خطأ أثناء الحفظ!')
+      const data = await res.json().catch(() => ({}))
+      alert(data.message || 'حدث خطأ أثناء الحفظ!')
     }
   } catch (err) {
     alert('فشل الاتصال بالخادم.')
   } finally {
     saving.value = false
   }
+}
+
+// تحميل نسخة CSV من كشف الحضور للكمبيوتر
+const downloadCSV = () => {
+  const header = ['رقم العضوية', 'اسم اللاعب', 'الحالة']
+  const lines = savedAttendance.value.map(r =>
+    [r.member_number || '', r.name || '', r.status || ''].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+  )
+  const csv = [header.join(','), ...lines].join('\r\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `attendance-session-${sessionId}-${selectedDate.value}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 </script>
 
@@ -304,6 +365,38 @@ const saveAttendance = async () => {
   color: #b91c1c;
   border-color: #fca5a5;
   font-weight: bold;
+}
+
+.saved-banner {
+  background: #dcfce7;
+  color: #15803d;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-weight: bold;
+  margin: 15px 0 5px 0;
+  border: 1px solid #86efac;
+}
+
+.status-text {
+  font-weight: bold;
+  padding: 4px 14px;
+  border-radius: 20px;
+  display: inline-block;
+}
+
+.status-text.present {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.status-text.late {
+  background-color: #fef9c3;
+  color: #a16207;
+}
+
+.status-text.absent {
+  background-color: #fee2e2;
+  color: #b91c1c;
 }
 
 .empty-state, .loading-state {

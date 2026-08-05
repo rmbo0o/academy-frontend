@@ -171,13 +171,17 @@ const createSession = async () => {
       },
       body: JSON.stringify({ package_id: form.value.package_id })
     });
+    const data = await response.json().catch(() => ({}));
     if (response.ok) {
-      alert('تم إدراج الحصة بجدول التمارين بنجاح! ⚽');
+      alert(data.message || 'تم إدراج الحصة بجدول التمارين بنجاح! ⚽');
       form.value.package_id = '';
       await fetchSessions();
+    } else {
+      alert(data.message || 'حدث خطأ أثناء حفظ الحصة!');
     }
   } catch (err) {
     console.error(err);
+    alert('فشل الاتصال بالخادم.');
   }
 };
 
